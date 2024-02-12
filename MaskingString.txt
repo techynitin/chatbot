@@ -1,0 +1,57 @@
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class PiiMasker {
+
+    private static final Pattern CREDIT_CARD_PATTERN = Pattern.compile("\\b\\d{16}\\b");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z]{2,6}\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACCOUNT_NUMBER_PATTERN = Pattern.compile("\\b\\d{11}\\b");
+
+    // Combined pattern for efficiency
+    private static final Pattern COMBINED_PATTERN = Pattern.compile(
+            CREDIT_CARD_PATTERN.pattern() + "|" + EMAIL_PATTERN.pattern() + "|" + ACCOUNT_NUMBER_PATTERN.pattern()
+    );
+
+    public static String maskSensitiveData(String text) {
+        Matcher matcher = COMBINED_PATTERN.matcher(text);
+        StringBuffer sb = new StringBuffer();
+
+        while (matcher.find()) {
+            if (matcher.group().matches(CREDIT_CARD_PATTERN.pattern())) {
+                matcher.appendReplacement(sb, "************####");
+            } else if (matcher.group().matches(EMAIL_PATTERN.pattern())) {
+                matcher.appendReplacement(sb, "####@####.###");
+            } else if (matcher.group().matches(ACCOUNT_NUMBER_PATTERN.pattern())) {
+                matcher.appendReplacement(sb, "#####*****");
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+}
+
+
+
+
+
+
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class MaskingController {
+
+    @PostMapping("/mask")
+    public ResponseEntity<String> maskSensitiveData(@RequestBody String data) {
+        String maskedData = PiiMasker.maskSensitiveData(data);
+        return ResponseEntity.ok(maskedData);
+    }
+}
+
+
+
+
+
