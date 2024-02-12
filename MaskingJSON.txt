@@ -57,3 +57,49 @@ public class JsonMaskingController {
         return objectMapper.writeValueAsString(rootNode);
     }
 }
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+public class JsonMaskingUtil {
+
+    public static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask) {
+        if (rootNode.isObject()) {
+            processObjectNode((ObjectNode) rootNode, fieldsToMask);
+        } else if (rootNode.isArray()) {
+            processArrayNode((ArrayNode) rootNode, fieldsToMask);
+        }
+    }
+
+    private static void processObjectNode(ObjectNode objectNode, String[] fieldsToMask) {
+        objectNode.fieldNames().forEachRemaining(fieldName -> {
+            JsonNode childNode = objectNode.get(fieldName);
+            if (childNode.isTextual() && isFieldToMask(fieldName, fieldsToMask)) {
+                objectNode.put(fieldName, "XXXX");
+            } else if (childNode.isObject()) {
+                maskSensitiveData(childNode, fieldsToMask);
+            } else if (childNode.isArray()) {
+                processArrayNode((ArrayNode) childNode, fieldsToMask);
+            }
+        });
+    }
+
+    private static void processArrayNode(ArrayNode arrayNode, String[] fieldsToMask) {
+        arrayNode.forEach(node -> maskSensitiveData(node, fieldsToMask));
+    }
+
+    private static boolean isFieldToMask(String fieldName, String[] fieldsToMask) {
+        for (String field : fieldsToMask) {
+            if (field.equals(fieldName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
