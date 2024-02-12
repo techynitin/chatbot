@@ -1,0 +1,59 @@
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.13.1</version>
+</dependency>
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+public class JsonMaskingUtil {
+
+    public static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask) {
+        if (rootNode.isObject()) {
+            processObjectNode((ObjectNode) rootNode, fieldsToMask);
+        } else if (rootNode.isArray()) {
+            rootNode.forEach(childNode -> maskSensitiveData(childNode, fieldsToMask));
+        }
+    }
+
+    private static void processObjectNode(ObjectNode objectNode, String[] fieldsToMask) {
+        for (String field : fieldsToMask) {
+            JsonNode childNode = objectNode.get(field);
+            if (childNode != null && childNode.isTextual()) {
+                objectNode.put(field, "XXXX");
+            } else if (childNode != null) {
+                maskSensitiveData(childNode, fieldsToMask);
+            }
+        }
+    }
+}
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import java.io.IOException;
+
+@RestController
+public class JsonMaskingController {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostMapping(value = "/maskjson", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public String maskJson(@RequestBody String json) throws IOException {
+        JsonNode rootNode = objectMapper.readTree(json);
+        String[] fieldsToMask = {"creditCardNumber", "ssn"}; // specify fields to mask
+
+        JsonMaskingUtil.maskSensitiveData(rootNode, fieldsToMask);
+        return objectMapper.writeValueAsString(rootNode);
+    }
+}
