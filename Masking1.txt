@@ -1,0 +1,89 @@
+public class Main {
+    public static void main(String[] args) {
+        XmlMasker masker = new XmlMasker();
+        String xml = "<PIIDATA><CCNO>1234567890123456</CCNO><NAME>John Doe</NAME></PIIDATA>";
+        String[] xPaths = {"/PIIDATA/CCNO"};
+
+        String maskedXml = masker.maskSensitiveData(xml, xPaths);
+        System.out.println(maskedXml);
+    }
+}
+
+
+
+
+
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import java.io.StringReader;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.StringWriter;
+
+public class XmlMasker {
+
+    public String maskSensitiveData(String xml, String[] xPathsToMask) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(new InputSource(new StringReader(xml)));
+
+            XPathFactory xPathfactory = XPathFactory.newInstance();
+            XPath xpath = xPathfactory.newXPath();
+
+            for (String xPathExpr : xPathsToMask) {
+                XPathExpression expr = xpath.compile(xPathExpr);
+                NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+
+                for (int i = 0; i < nl.getLength(); i++) {
+                    MaskingUtil.maskNodeContent(nl.item(i));
+                }
+            }
+
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            return writer.getBuffer().toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+public class MaskingUtil {
+
+    public static void maskNodeContent(Node node) {
+        node.setTextContent("XXXX");
+    }
+}
+
+
+
+
+
+
+<dependency>
+    <groupId>javax.xml</groupId>
+    <artifactId>jaxp-api</artifactId>
+    <version>1.4.5</version>
+</dependency>
