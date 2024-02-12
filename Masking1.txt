@@ -87,3 +87,23 @@ public class MaskingUtil {
     <artifactId>jaxp-api</artifactId>
     <version>1.4.5</version>
 </dependency>
+
+
+
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class XmlMaskingController {
+
+    @PostMapping(value = "/maskxml", consumes = MediaType.APPLICATION_XML_VALUE, produces = MediaType.APPLICATION_XML_VALUE)
+    public String maskXml(@RequestBody String xml) {
+        // Assuming XmlMasker is the class that contains the masking logic
+        XmlMasker masker = new XmlMasker();
+        String[] xPaths = {"/PIIDATA/CCNO"}; // Specify the XPath for the data you want to mask
+
+        return masker.maskSensitiveData(xml, xPaths);
+    }
+}
