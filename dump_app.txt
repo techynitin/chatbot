@@ -1,0 +1,18 @@
+# JSON Endpoints Configuration
+json.endpoints[0].path=/savedata
+json.endpoints[0].patterns=creditcard,accno
+
+json.endpoints[1].path=/saveaccdata
+json.endpoints[1].patterns=aadhaar,accno
+
+# XML Endpoints Configuration
+xml.endpoints[0].path=/savedataxml
+xml.endpoints[0].xmlpaths=//creditCardNumber, //accountNumber
+
+xml.endpoints[1].path=/saveaccdataxml
+xml.endpoints[1].xmlpaths=//aadhaarNumber, //accountNumber
+
+public enum PiiType {
+    CREDIT_CARD("creditcard", "ccno", "creditno"),
+    ACCOUNT_NUMBER("accno", "accountno", "accountnumber"),
+    AADHAAR_NUMBER("aadhaar", "aadhaarnumber", "aadhaarno");
