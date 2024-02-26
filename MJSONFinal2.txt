@@ -730,3 +730,83 @@ public class JsonMaskingUtil {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class JsonMaskingUtil {
+
+    private static MaskingProperties maskingProperties; // Injected or initialized elsewhere
+
+    // Existing method - Keep as is
+    public static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask) {
+        // Existing implementation...
+    }
+
+    public static String maskSensitiveData(String json, String txnId) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode rootNode = mapper.readTree(json);
+
+            List<String> patternsToMask = getPatternsForTxnId(txnId);
+            if (patternsToMask != null) {
+                maskSensitiveData(rootNode, patternsToMask.toArray(new String[0]));
+            }
+
+            return mapper.writeValueAsString(rootNode);
+        } catch (Exception e) {
+            // Handle exceptions appropriately
+            return json;
+        }
+    }
+
+    private static List<String> getPatternsForTxnId(String txnId) {
+        List<EndpointConfig> configs = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName());
+        if (configs != null) {
+            for (EndpointConfig config : configs) {
+                if (config.getPath().equals(txnId)) {
+                    return config.getPatterns().stream()
+                            .flatMap(patternKey -> Variations.getByVariation(patternKey).getVariations().stream())
+                            .distinct()
+                            .collect(Collectors.toList());
+                }
+            }
+        }
+        return null;
+    }
+
+    // Existing method to mask fields - Keep as is or modify as needed
+    private static void maskFields(JsonNode node, List<String> patterns) {
+        // Existing implementation...
+    }
+
+    // Existing method to mask values - Keep as is
+    private static String maskValue(String value) {
+        // Existing implementation...
+    }
+}
+
