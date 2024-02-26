@@ -370,3 +370,98 @@ public class JsonMaskingUtil {
 }
 
 
+
+
+
+public Map<String, List<Variations>> getTranslatedJsonVariations() {
+        return json.entrySet().stream().collect(Collectors.toMap(
+            Map.Entry::getKey,
+            entry -> entry.getValue().stream()
+                          .map(Variations::getByVariation)
+                          .filter(java.util.Objects::nonNull)
+                          .collect(Collectors.toList())
+        ));
+    }
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class JsonMaskingUtil {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public JsonMaskingUtil(MaskingProperties props) {
+        JsonMaskingUtil.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String json) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(json);
+            List<String> fieldsToMask = getFieldsToMask();
+            maskSensitiveData(rootNode, fieldsToMask.toArray(new String[0]));
+            return objectMapper.writeValueAsString(rootNode);
+        } catch (IOException e) {
+            // Log the exception (replace with actual logging)
+            return json; // Return original JSON in case of exception
+        }
+    }
+
+    private static List<String> getFieldsToMask() {
+        List<String> fieldsToMask = new ArrayList<>();
+        List<Variations> variations = maskingProperties.getTranslatedJsonVariations().get(maskingProperties.getCurrentMicroserviceName());
+
+        if (variations != null) {
+            fieldsToMask.addAll(variations.stream()
+                .flatMap(variation -> variation.getVariations().stream())
+                .collect(Collectors.toList()));
+        }
+
+        return fieldsToMask;
+    }
+
+    private static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask) {
+        if (rootNode.isObject()) {
+            processObjectNode((ObjectNode) rootNode, fieldsToMask);
+        } else if (rootNode.isArray()) {
+            rootNode.forEach(childNode -> maskSensitiveData(childNode, fieldsToMask));
+        }
+    }
+
+    private static void processObjectNode(ObjectNode objectNode, String[] fieldsToMask) {
+        for (String field : fieldsToMask) {
+            JsonNode childNode = objectNode.get(field);
+            if (childNode != null && childNode.isTextual()) {
+                String value = childNode.asText();
+                String maskedValue = maskValue(value);
+                objectNode.put(field, maskedValue);
+            } else if (childNode != null) {
+                maskSensitiveData(childNode, fieldsToMask);
+            }
+        }
+    }
+
+    private static String maskValue(String value) {
+        if (value.length() <= maskingProperties.getUnmaskedChars()) {
+            return value;
+        }
+        String maskCharacter = maskingProperties.getCharacter() != null ? maskingProperties.getCharacter() : "X";
+        String mask = StringUtils.repeat(maskCharacter, value.length() - maskingProperties.getUnmaskedChars());
+        return mask + value.substring(value.length() - maskingProperties.getUnmaskedChars());
+    }
+}
+
+
