@@ -1,0 +1,62 @@
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class PiiMasker {
+
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public PiiMasker(MaskingProperties props) {
+        PiiMasker.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String text, String txnId) {
+        List<Pattern> patterns = getPatternsForTxnId(txnId);
+        StringBuffer sb = new StringBuffer();
+
+        for (Pattern pattern : patterns) {
+            Matcher matcher = pattern.matcher(text);
+            while (matcher.find()) {
+                String masked = maskValue(matcher.group());
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(masked));
+            }
+            matcher.appendTail(sb);
+            text = sb.toString();
+            sb.setLength(0); // Reset the StringBuffer for the next pattern
+        }
+
+        return text;
+    }
+
+    private static List<String> getXmlPathsForTxnId(String txnId) {
+    // Fetch the list of EndpointConfig for the current microservice
+    List<EndpointConfig> configs = maskingProperties.getXml().get(maskingProperties.getCurrentMicroserviceName());
+    if (configs == null) {
+        return List.of(); // Return empty list if no configs are found
+    }
+
+    // Find the first EndpointConfig that matches the txnId
+    for (EndpointConfig config : configs) {
+        if (config.getTxnId().equals(txnId)) {
+            return config.getXmlPaths(); // Return the XML paths if a match is found
+        }
+    }
+
+    return List.of(); // Return empty list if no matching config is found
+}
+
+
+    private static String maskValue(String value) {
+        int unmaskedChars = maskingProperties.getUnmaskedChars();
+        if (value.length() <= unmaskedChars) {
+            return value;
+        }
+        String mask = "*".repeat(value.length() - unmaskedChars);
+        return mask + value.substring(value.length() - unmaskedChars);
+    }
+}
