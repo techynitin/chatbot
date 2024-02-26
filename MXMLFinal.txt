@@ -264,3 +264,112 @@ public class XmlMaskingUtil {
         node.setTextContent(mask + textContent.substring(textContent.length() - maskingProperties.getUnmaskedChars()));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import org.apache.commons.lang3.StringUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import java.io.StringReader;
+import java.io.StringWriter;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import org.xml.sax.InputSource;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class XmlMaskingUtil {
+
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public XmlMaskingUtil(MaskingProperties props) {
+        XmlMaskingUtil.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String xml, String txnId) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(new InputSource(new StringReader(xml)));
+
+            XPathFactory xPathfactory = XPathFactory.newInstance();
+            XPath xpath = xPathfactory.newXPath();
+
+            List<String> xmlPathsToMask = getXmlPathsForTxnId(txnId);
+            for (String xPathExpr : xmlPathsToMask) {
+                XPathExpression expr = xpath.compile(xPathExpr);
+                NodeList nodes = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    maskNodeContent(nodes.item(i));
+                }
+            }
+
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            return writer.getBuffer().toString();
+        } catch (Exception e) {
+            // Log the exception (logging not shown here)
+            return xml; // Return original XML in case of exception
+        }
+    }
+
+    private static void maskNodeContent(Node node) {
+        String textContent = node.getTextContent();
+        if (textContent.length() <= maskingProperties.getUnmaskedChars()) {
+            return;
+        }
+        String mask = StringUtils.repeat(maskingProperties.getMaskingCharacter(), textContent.length() - maskingProperties.getUnmaskedChars());
+        node.setTextContent(mask + textContent.substring(textContent.length() - maskingProperties.getUnmaskedChars()));
+    }
+
+    private static List<String> getXmlPathsForTxnId(String txnId) {
+        // Implement logic to retrieve XML paths based on txnId from maskingProperties
+        // This logic will be similar to the one used in JSONMaskingUtil, tailored for XML paths
+        // For example, fetch the EndpointConfig for the txnId and then get the corresponding XML paths
+        // This is a simplified representation and may need adjustment based on your exact configuration
+        EndpointConfig config = maskingProperties.getXml().get(maskingProperties.getCurrentMicroserviceName())
+                                                  .stream()
+                                                  .filter(c -> c.getTxnId().equals(txnId))
+                                                  .findFirst()
+                                                  .orElse(null);
+
+        if (config == null) {
+            return List.of();
+        }
+
+        return config.getXmlPaths();
+    }
+}
+
