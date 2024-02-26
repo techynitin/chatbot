@@ -830,3 +830,33 @@ private static List<String> getPatternsForTxnId(String txnId) {
     return null;
 }
 
+
+
+
+
+
+
+
+private static List<String> getPatternsForTxnId(String txnId) {
+    List<EndpointConfig> configs = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName());
+    if (configs != null) {
+        for (EndpointConfig config : configs) {
+            if (config.getPath().equals(txnId)) {
+                List<String> allPatterns = new ArrayList<>();
+                for (String patternKey : config.getPatterns()) {
+                    // Add the pattern itself
+                    allPatterns.add(patternKey);
+
+                    // Add variations if available
+                    Variations variationEnum = Variations.getByVariation(patternKey);
+                    if (variationEnum != null) {
+                        allPatterns.addAll(variationEnum.getVariations());
+                    }
+                }
+                return allPatterns.stream().distinct().collect(Collectors.toList());
+            }
+        }
+    }
+    return Collections.emptyList(); // Return an empty list instead of null for better handling
+}
+
