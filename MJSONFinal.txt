@@ -1,0 +1,378 @@
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.13.1</version>
+</dependency>
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+public class JsonMaskingUtil {
+
+    public static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask) {
+        if (rootNode.isObject()) {
+            processObjectNode((ObjectNode) rootNode, fieldsToMask);
+        } else if (rootNode.isArray()) {
+            rootNode.forEach(childNode -> maskSensitiveData(childNode, fieldsToMask));
+        }
+    }
+
+    private static void processObjectNode(ObjectNode objectNode, String[] fieldsToMask) {
+        for (String field : fieldsToMask) {
+            JsonNode childNode = objectNode.get(field);
+            if (childNode != null && childNode.isTextual()) {
+                objectNode.put(field, "XXXX");
+            } else if (childNode != null) {
+                maskSensitiveData(childNode, fieldsToMask);
+            }
+        }
+    }
+}
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import java.io.IOException;
+
+@RestController
+public class JsonMaskingController {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostMapping(value = "/maskjson", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public String maskJson(@RequestBody String json) throws IOException {
+        JsonNode rootNode = objectMapper.readTree(json);
+        String[] fieldsToMask = {"creditCardNumber", "ssn"}; // specify fields to mask
+
+        JsonMaskingUtil.maskSensitiveData(rootNode, fieldsToMask);
+        return objectMapper.writeValueAsString(rootNode);
+    }
+}
+
+
+
+feb 24
+
+<dependency>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-lang3</artifactId>
+    <version>3.12.0</version>
+</dependency>
+
+import org.apache.commons.lang3.StringUtils;
+
+public class DataFormatUtil {
+
+    /**
+     * Checks if the given input is JSON.
+     * 
+     * @param input The string to be checked.
+     * @return true if the input is JSON, false otherwise.
+     */
+    public static boolean isJson(String input) {
+        return StringUtils.startsWithAny(StringUtils.trim(input), "{", "[");
+    }
+
+    /**
+     * Checks if the given input is XML.
+     * 
+     * @param input The string to be checked.
+     * @return true if the input is XML, false otherwise.
+     */
+    public static boolean isXml(String input) {
+        String trimmedInput = StringUtils.trim(input);
+        return trimmedInput.startsWith("<") && trimmedInput.endsWith(">");
+    }
+}
+
+
+app.properties
+
+# Specify the current microservice name
+current.microservice.name=dis_demo
+
+# Masking Configuration
+masking.character=X
+masking.unmasked.chars=4
+
+# JSON Endpoints Configuration for dis_demo microservice
+json.endpoints.dis_demo[0].path=/savedata
+json.endpoints.dis_demo[0].patterns=creditcard,accno
+
+# XML Endpoints Configuration for dis_demo microservice
+xml.endpoints.dis_demo[0].path=/savedataxml
+xml.endpoints.dis_demo[0].xmlpaths=//creditCardNumber,//accountNumber
+
+
+
+
+
+
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@ConfigurationProperties(prefix = "current.microservice")
+public class MicroserviceConfig {
+    private String name;
+
+    // Getters and Setters
+}
+
+
+
+
+
+
+
+
+import java.util.List;
+
+public class EndpointConfig {
+    private String path;
+    private List<String> patterns;
+    private List<String> xmlpaths;
+
+    // Getters and Setters
+}
+
+
+
+
+
+
+
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+import java.util.Map;
+
+@Configuration
+@ConfigurationProperties
+public class MaskingProperties {
+
+    private Map<String, List<EndpointConfig>> json;
+    private Map<String, List<EndpointConfig>> xml;
+    private String maskingCharacter;
+    private int unmaskedChars;
+
+    // Getters and Setters
+}
+
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.IOException;
+import java.util.List;
+
+public class JsonMaskingUtil {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    public static String maskSensitiveData(String json, MicroserviceConfig microserviceConfig, MaskingProperties maskingProperties) {
+        try {
+            String microserviceName = microserviceConfig.getName();
+            List<EndpointConfig> configs = maskingProperties.getJson().get(microserviceName);
+
+            if (configs == null) {
+                throw new IllegalArgumentException("No JSON endpoint configurations found for microservice: " + microserviceName);
+            }
+
+            JsonNode rootNode = objectMapper.readTree(json);
+
+            for (EndpointConfig config : configs) {
+                maskSensitiveData(rootNode, config.getPatterns().toArray(new String[0]),
+                                  maskingProperties.getMaskingCharacter(),
+                                  maskingProperties.getUnmaskedChars());
+            }
+
+            return objectMapper.writeValueAsString(rootNode);
+        } catch (IOException | IllegalArgumentException e) {
+            // Log the exception details for debugging and return the original string
+            // Logger can be used here to log the error
+            return json;
+        }
+    }
+
+    private static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask, String maskingChar, int unmaskedChars) {
+        if (rootNode.isObject()) {
+            processObjectNode((ObjectNode) rootNode, fieldsToMask, maskingChar, unmaskedChars);
+        } else if (rootNode.isArray()) {
+            rootNode.forEach(childNode -> maskSensitiveData(childNode, fieldsToMask, maskingChar, unmaskedChars));
+        }
+    }
+
+    private static void processObjectNode(ObjectNode objectNode, String[] fieldsToMask, String maskingChar, int unmaskedChars) {
+        for (String field : fieldsToMask) {
+            JsonNode childNode = objectNode.get(field);
+            if (childNode != null && childNode.isTextual()) {
+                String value = childNode.asText();
+                String maskedValue = maskValue(value, maskingChar, unmaskedChars);
+                objectNode.put(field, maskedValue);
+            } else if (childNode != null) {
+                maskSensitiveData(childNode, fieldsToMask, maskingChar, unmaskedChars);
+            }
+        }
+    }
+
+    private static String maskValue(String value, String maskingChar, int unmaskedChars) {
+        if (value.length() <= unmaskedChars) {
+            return value;
+        }
+        String mask = StringUtils.repeat(maskingChar, value.length() - unmaskedChars);
+        return mask + value.substring(value.length() - unmaskedChars);
+    }
+}
+
+
+
+
+
+MAP changes in above
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.IOException;
+import java.util.Map;
+
+public class JsonMaskingUtil {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Method accepting a Map of JSON strings and MicroserviceConfig
+    public static String maskSensitiveData(Map<String, String> jsonMap, MicroserviceConfig microserviceConfig, MaskingProperties maskingProperties) {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : jsonMap.entrySet()) {
+            result.append(maskSingleJson(entry.getKey(), entry.getValue(), microserviceConfig, maskingProperties));
+        }
+        return result.toString();
+    }
+
+    // Method accepting a single JSON string and MicroserviceConfig
+    public static String maskSensitiveData(String json, MicroserviceConfig microserviceConfig, MaskingProperties maskingProperties) {
+        return maskSingleJson("default", json, microserviceConfig, maskingProperties);
+    }
+
+    // Helper method to handle single JSON string masking
+    private static String maskSingleJson(String key, String json, MicroserviceConfig microserviceConfig, MaskingProperties maskingProperties) {
+        try {
+            List<EndpointConfig> configs = maskingProperties.getJson().get(microserviceConfig.getName());
+            if (configs == null) {
+                return json;  // Return original json if no config found
+            }
+
+            JsonNode rootNode = objectMapper.readTree(json);
+            for (EndpointConfig config : configs) {
+                maskSensitiveData(rootNode, config.getPatterns().toArray(new String[0]),
+                                  maskingProperties.getMaskingCharacter(),
+                                  maskingProperties.getUnmaskedChars());
+            }
+
+            return objectMapper.writeValueAsString(rootNode);
+        } catch (IOException e) {
+            // Log exception (logging not shown here)
+            return json;  // Return original json in case of exception
+        }
+    }
+
+    // Existing private methods to mask data
+    // ...
+}
+
+
+
+Final
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+@Component
+public class JsonMaskingUtil {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public JsonMaskingUtil(MaskingProperties props) {
+        JsonMaskingUtil.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String json) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(json);
+            List<String> fieldsToMask = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName()).getPatterns();
+            maskSensitiveData(rootNode, fieldsToMask.toArray(new String[0]));
+            return objectMapper.writeValueAsString(rootNode);
+        } catch (IOException e) {
+            // Log the exception (logging not shown here)
+            return json; // Return original JSON in case of exception
+        }
+    }
+
+    public static String maskSensitiveData(Map<String, String> jsonMap) {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : jsonMap.entrySet()) {
+            result.append(maskSensitiveData(entry.getValue()));
+        }
+        return result.toString();
+    }
+
+    private static void maskSensitiveData(JsonNode rootNode, String[] fieldsToMask) {
+        if (rootNode.isObject()) {
+            processObjectNode((ObjectNode) rootNode, fieldsToMask);
+        } else if (rootNode.isArray()) {
+            rootNode.forEach(childNode -> maskSensitiveData(childNode, fieldsToMask));
+        }
+    }
+
+    private static void processObjectNode(ObjectNode objectNode, String[] fieldsToMask) {
+        for (String field : fieldsToMask) {
+            JsonNode childNode = objectNode.get(field);
+            if (childNode != null && childNode.isTextual()) {
+                String value = childNode.asText();
+                String maskedValue = maskValue(value);
+                objectNode.put(field, maskedValue);
+            } else if (childNode != null) {
+                maskSensitiveData(childNode, fieldsToMask);
+            }
+        }
+    }
+
+    private static String maskValue(String value) {
+        if (value.length() <= maskingProperties.getUnmaskedChars()) {
+            return value;
+        }
+        String mask = StringUtils.repeat(maskingProperties.getCharacter(), value.length() - maskingProperties.getUnmaskedChars());
+        return mask + value.substring(value.length() - maskingProperties.getUnmaskedChars());
+    }
+}
+
+

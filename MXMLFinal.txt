@@ -1,0 +1,266 @@
+public class Main {
+    public static void main(String[] args) {
+        XmlMasker masker = new XmlMasker();
+        String xml = "<PIIDATA><CCNO>1234567890123456</CCNO><NAME>John Doe</NAME></PIIDATA>";
+        String[] xPaths = {"/PIIDATA/CCNO"};
+
+        String maskedXml = masker.maskSensitiveData(xml, xPaths);
+        System.out.println(maskedXml);
+    }
+}
+
+
+
+
+
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import java.io.StringReader;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.StringWriter;
+
+public class XmlMasker {
+
+    public String maskSensitiveData(String xml, String[] xPathsToMask) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(new InputSource(new StringReader(xml)));
+
+            XPathFactory xPathfactory = XPathFactory.newInstance();
+            XPath xpath = xPathfactory.newXPath();
+
+            for (String xPathExpr : xPathsToMask) {
+                XPathExpression expr = xpath.compile(xPathExpr);
+                NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+
+                for (int i = 0; i < nl.getLength(); i++) {
+                    MaskingUtil.maskNodeContent(nl.item(i));
+                }
+            }
+
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            return writer.getBuffer().toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+public class MaskingUtil {
+
+    public static void maskNodeContent(Node node) {
+        node.setTextContent("XXXX");
+    }
+}
+
+
+
+
+
+
+<dependency>
+    <groupId>javax.xml</groupId>
+    <artifactId>jaxp-api</artifactId>
+    <version>1.4.5</version>
+</dependency>
+
+
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class XmlMaskingController {
+
+    @PostMapping(value = "/maskxml", consumes = MediaType.APPLICATION_XML_VALUE, produces = MediaType.APPLICATION_XML_VALUE)
+    public String maskXml(@RequestBody String xml) {
+        // Assuming XmlMasker is the class that contains the masking logic
+        XmlMasker masker = new XmlMasker();
+        String[] xPaths = {"/PIIDATA/CCNO"}; // Specify the XPath for the data you want to mask
+
+        return masker.maskSensitiveData(xml, xPaths);
+    }
+}
+
+
+
+
+
+
+24 FEB
+
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import java.io.StringReader;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.StringWriter;
+import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
+import org.xml.sax.InputSource;
+
+public class XmlMasker {
+
+    public String maskSensitiveData(Map<String, String> xmlMap, String[] xPathsToMask, MaskingProperties maskingProperties) {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : xmlMap.entrySet()) {
+            String maskedXml = maskSingleXml(entry.getValue(), xPathsToMask, maskingProperties);
+            result.append(maskedXml);
+        }
+        return result.toString();
+    }
+
+    public String maskSensitiveData(String xml, String[] xPathsToMask, MaskingProperties maskingProperties) {
+        return maskSingleXml(xml, xPathsToMask, maskingProperties);
+    }
+
+    private String maskSingleXml(String xml, String[] xPathsToMask, MaskingProperties maskingProperties) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(new InputSource(new StringReader(xml)));
+
+            XPathFactory xPathfactory = XPathFactory.newInstance();
+            XPath xpath = xPathfactory.newXPath();
+
+            for (String xPathExpr : xPathsToMask) {
+                XPathExpression expr = xpath.compile(xPathExpr);
+                NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+
+                for (int i = 0; i < nl.getLength(); i++) {
+                    maskNodeContent(nl.item(i), maskingProperties);
+                }
+            }
+
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            return writer.getBuffer().toString();
+
+        } catch (Exception e) {
+            // Log the exception (logging not shown here)
+            return xml;  // Return original XML in case of exception
+        }
+    }
+
+    private void maskNodeContent(Node node, MaskingProperties maskingProperties) {
+        String textContent = node.getTextContent();
+        if (textContent.length() <= maskingProperties.getUnmaskedChars()) {
+            return; // Do not mask if content is shorter than or equal to unmasked chars
+        }
+
+        String mask = StringUtils.repeat(maskingProperties.getMaskingCharacter(), 
+                                          textContent.length() - maskingProperties.getUnmaskedChars());
+        node.setTextContent(mask + textContent.substring(textContent.length() - maskingProperties.getUnmaskedChars()));
+    }
+}
+
+
+
+
+
+Final:
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import org.apache.commons.lang3.StringUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import java.io.StringReader;
+import java.io.StringWriter;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import org.xml.sax.InputSource;
+
+@Component
+public class XmlMaskingUtil {
+
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public XmlMaskingUtil(MaskingProperties props) {
+        XmlMaskingUtil.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String xml) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(new InputSource(new StringReader(xml)));
+
+            XPathFactory xPathfactory = XPathFactory.newInstance();
+            XPath xpath = xPathfactory.newXPath();
+
+            List<String> xmlPathsToMask = maskingProperties.getXml().get(maskingProperties.getCurrentMicroserviceName()).getXmlpaths();
+            for (String xPathExpr : xmlPathsToMask) {
+                XPathExpression expr = xpath.compile(xPathExpr);
+                NodeList nodes = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    maskNodeContent(nodes.item(i));
+                }
+            }
+
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            return writer.getBuffer().toString();
+        } catch (Exception e) {
+            // Log the exception (logging not shown here)
+            return xml; // Return original XML in case of exception
+        }
+    }
+
+    private static void maskNodeContent(Node node) {
+        String textContent = node.getTextContent();
+        if (textContent.length() <= maskingProperties.getUnmaskedChars()) {
+            return;
+        }
+        String mask = StringUtils.repeat(maskingProperties.getCharacter(), textContent.length() - maskingProperties.getUnmaskedChars());
+        node.setTextContent(mask + textContent.substring(textContent.length() - maskingProperties.getUnmaskedChars()));
+    }
+}
