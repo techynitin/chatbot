@@ -810,3 +810,23 @@ public class JsonMaskingUtil {
     }
 }
 
+
+
+
+private static List<String> getPatternsForTxnId(String txnId) {
+    List<EndpointConfig> configs = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName());
+    if (configs != null) {
+        for (EndpointConfig config : configs) {
+            if (config.getPath().equals(txnId)) {
+                return config.getPatterns().stream()
+                        .map(patternKey -> Variations.getByVariation(patternKey))
+                        .filter(Objects::nonNull)
+                        .flatMap(variation -> variation.getVariations().stream())
+                        .distinct()
+                        .collect(Collectors.toList());
+            }
+        }
+    }
+    return null;
+}
+
