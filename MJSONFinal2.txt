@@ -621,3 +621,112 @@ public class JsonMaskingUtil {
     // ... existing methods for masking data
 }
 
+
+
+
+
+
+
+public class JsonMaskingUtil {
+
+    // Other methods and fields...
+
+    public static String maskSensitiveData(String json, String txnid) {
+        // Fetch the configs for the current microservice
+        List<EndpointConfig> configs = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName());
+        
+        if (configs != null) {
+            for (EndpointConfig config : configs) {
+                if (config.getTxnid().equals(txnid)) {
+                    // Apply masking based on the patterns for this txnid
+                    List<String> patternsToMask = config.getPatterns();
+                    // Perform masking logic here based on patternsToMask
+                }
+            }
+        }
+
+        return json; // Return the masked JSON
+    }
+
+    // Other methods...
+}
+
+
+
+
+
+
+
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class JsonMaskingUtil {
+
+    private static MaskingProperties maskingProperties; // Injected or initialized elsewhere
+
+    public static String maskSensitiveData(String json, String txnId) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode rootNode = mapper.readTree(json);
+
+            List<String> patternsToMask = getPatternsForTxnId(txnId);
+            if (patternsToMask != null) {
+                maskFields(rootNode, patternsToMask);
+            }
+
+            return mapper.writeValueAsString(rootNode);
+        } catch (Exception e) {
+            // Handle exceptions appropriately
+            return json;
+        }
+    }
+
+    private static List<String> getPatternsForTxnId(String txnId) {
+        List<EndpointConfig> configs = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName());
+        if (configs != null) {
+            for (EndpointConfig config : configs) {
+                if (config.getPath().equals(txnId)) {
+                    return config.getPatterns().stream()
+                            .flatMap(patternKey -> Variations.getByVariation(patternKey).getVariations().stream())
+                            .distinct()
+                            .collect(Collectors.toList());
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void maskFields(JsonNode node, List<String> patterns) {
+        if (node.isObject()) {
+            ObjectNode objectNode = (ObjectNode) node;
+            objectNode.fieldNames().forEachRemaining(field -> {
+                if (patterns.contains(field)) {
+                    objectNode.put(field, maskValue(objectNode.get(field).asText()));
+                } else if (objectNode.get(field).isObject() || objectNode.get(field).isArray()) {
+                    maskFields(objectNode.get(field), patterns);
+                }
+            });
+        } else if (node.isArray()) {
+            node.forEach(childNode -> maskFields(childNode, patterns));
+        }
+    }
+
+    private static String maskValue(String value) {
+        int unmaskedChars = maskingProperties.getUnmaskedChars();
+        if (value.length() <= unmaskedChars) {
+            return value;
+        }
+
+        String maskedPart = value.substring(0, value.length() - unmaskedChars).replaceAll(".", maskingProperties.getCharacter());
+        return maskedPart + value.substring(value.length() - unmaskedChars);
+    }
+}
+
+
