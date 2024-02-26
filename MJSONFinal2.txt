@@ -541,3 +541,24 @@ public class JsonMaskingUtil {
 
 
 
+
+import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.List;
+
+// ... other imports and class definition
+
+public List<String> getVariationPatternsForService(String serviceName) {
+    List<EndpointConfig> configs = this.json.getOrDefault(serviceName, Collections.emptyList());
+
+    return configs.stream()
+                  .flatMap(config -> config.getPatterns() != null ? config.getPatterns().stream() : Stream.empty())
+                  .flatMap(patternKey -> {
+                      Variations variation = Variations.getByVariation(patternKey);
+                      return variation != null ? variation.getVariations().stream() : Stream.empty();
+                  })
+                  .distinct()
+                  .collect(Collectors.toList());
+}
+
+
