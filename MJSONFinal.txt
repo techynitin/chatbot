@@ -376,3 +376,14 @@ public class JsonMaskingUtil {
 }
 
 
+
+public List<String> getVariationPatternsForService(String serviceName) {
+        List<EndpointConfig> configs = this.json.get(serviceName);
+        if (configs == null) return null;
+
+        return configs.stream()
+                      .flatMap(config -> config.getPatterns().stream())
+                      .flatMap(patternKey -> Variations.getByVariation(patternKey).getVariations().stream())
+                      .distinct()
+                      .collect(Collectors.toList());
+    }
