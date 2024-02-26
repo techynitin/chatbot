@@ -149,3 +149,111 @@ public class JsonMaskingUtil {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+public enum PiiType {
+    CREDIT_CARD("creditcard", "ccno", "creditcardnumber"),
+    ACCOUNT_NUMBER("accno", "accountnumber", "accountno"),
+    // Add other PII types here
+
+    private final List<String> variations;
+
+    PiiType(String... variations) {
+        this.variations = Arrays.asList(variations);
+    }
+
+    public List<String> getVariations() {
+        return variations;
+    }
+}
+
+
+
+
+
+
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+import java.util.Map;
+import java.util.List;
+
+@Configuration
+@ConfigurationProperties(prefix = "masking")
+public class MaskingProperties {
+    private Map<String, List<String>> json; // Map of microservice name to list of PiiType keys
+    private String character;
+    private int unmaskedChars;
+
+    // Getters and Setters
+}
+
+
+
+
+
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class JsonMaskingUtil {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public JsonMaskingUtil(MaskingProperties props) {
+        JsonMaskingUtil.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String json) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(json);
+
+            List<String> fieldsToMask = getFieldVariations();
+            maskSensitiveData(rootNode, fieldsToMask.toArray(new String[0]));
+
+            return objectMapper.writeValueAsString(rootNode);
+        } catch (IOException e) {
+            return json;
+        }
+    }
+
+    private static List<String> getFieldVariations() {
+        List<String> fieldsToMask = new ArrayList<>();
+        List<String> piiTypes = maskingProperties.getJson().get(maskingProperties.getCurrentMicroserviceName());
+
+        for (String piiTypeKey : piiTypes) {
+            try {
+                PiiType piiType = PiiType.valueOf(piiTypeKey.toUpperCase());
+                fieldsToMask.addAll(piiType.getVariations());
+            } catch (IllegalArgumentException e) {
+                // Log invalid PiiType key, if needed
+            }
+        }
+
+        return fieldsToMask;
+    }
+
+    // Other existing methods
+}
+
+
+
+
