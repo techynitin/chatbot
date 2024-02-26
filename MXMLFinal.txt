@@ -373,3 +373,23 @@ public class XmlMaskingUtil {
     }
 }
 
+
+
+
+
+
+private static List<String> getXmlPathsForTxnId(String txnId) {
+    // Fetch the EndpointConfig for the given txnId from maskingProperties
+    List<EndpointConfig> configs = maskingProperties.getXml().get(maskingProperties.getCurrentMicroserviceName());
+    
+    if (configs != null) {
+        for (EndpointConfig config : configs) {
+            if (config.getTxnId().equals(txnId)) {
+                return config.getXmlPaths();
+            }
+        }
+    }
+
+    // Return an empty list if no matching EndpointConfig is found
+    return List.of();
+}
