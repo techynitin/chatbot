@@ -152,3 +152,25 @@ masking.string.endpoints.dis_demo[1].path=CCFK
 masking.string.endpoints.dis_demo[1].regex=<coffee>(.*?)</coffee>
 
 
+
+
+
+
+private static List<Pattern> getPatternsForTxnId(String txnId) {
+    List<String> regexStrings = getXmlPathsForTxnId(txnId);
+    if (regexStrings == null || regexStrings.isEmpty()) {
+        return Collections.emptyList(); // Return an empty list if no regex patterns are found
+    }
+
+    List<Pattern> patterns = new ArrayList<>();
+    for (String regexString : regexStrings) {
+        try {
+            Pattern pattern = Pattern.compile(regexString);
+            patterns.add(pattern);
+        } catch (PatternSyntaxException e) {
+            // Log the error and continue with the next regex pattern
+            // Assuming a logger is available, e.g., log.error("Invalid regex pattern: " + regexString, e);
+        }
+    }
+    return patterns;
+}
