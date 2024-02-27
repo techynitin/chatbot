@@ -60,3 +60,95 @@ public class PiiMasker {
         return mask + value.substring(value.length() - unmaskedChars);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+@Component
+public class PiiMasker {
+
+    private static MaskingProperties maskingProperties;
+
+    @Autowired
+    public PiiMasker(MaskingProperties props) {
+        PiiMasker.maskingProperties = props;
+    }
+
+    public static String maskSensitiveData(String text, String txnId) {
+        List<Pattern> patterns = getPatternsForTxnId(txnId);
+        StringBuffer sb = new StringBuffer();
+
+        for (Pattern pattern : patterns) {
+            Matcher matcher = pattern.matcher(text);
+            while (matcher.find()) {
+                String tagContent = matcher.group(1);
+                String maskedContent = maskValue(tagContent);
+                String maskedTag = matcher.group().replace(tagContent, maskedContent);
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(maskedTag));
+            }
+            matcher.appendTail(sb);
+            text = sb.toString();
+            sb.setLength(0); // Reset the StringBuffer for the next pattern
+        }
+
+        return text;
+    }
+
+    private static List<Pattern> getPatternsForTxnId(String txnId) {
+        // Assuming maskingProperties provides a way to get regex patterns based on txnId
+        // This logic needs to be implemented based on your application's configuration structure
+        // For now, it's a placeholder
+        return maskingProperties.getRegexPatternsForTxnId(txnId);
+    }
+
+    private static String maskValue(String value) {
+        int unmaskedChars = maskingProperties.getUnmaskedChars();
+        String maskChar = maskingProperties.getCharacter();
+        if (value.length() <= unmaskedChars) {
+            return value;
+        }
+        String mask = maskChar.repeat(value.length() - unmaskedChars);
+        return mask + value.substring(value.length() - unmaskedChars);
+    }
+}
+
+
+
+
+
+# Application properties
+masking.character=X
+masking.unmasked.chars=4
+masking.currentMicroserviceName=dis_demo
+
+# Regex Endpoints Configuration for dis_demo microservice
+masking.string.endpoints.dis_demo[0].path=CCFM
+masking.string.endpoints.dis_demo[0].regex=<book>(.*?)</book>
+
+masking.string.endpoints.dis_demo[1].path=CCFK
+masking.string.endpoints.dis_demo[1].regex=<coffee>(.*?)</coffee>
+
+
