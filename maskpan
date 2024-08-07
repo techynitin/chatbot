@@ -1,0 +1,98 @@
+App.yml
+
+masking:
+  patterns:
+    PAN: "3-4"
+    CREDIT_CARD: "6-4"
+
+
+
+Config
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.Map;
+
+@Configuration
+@ConfigurationProperties(prefix = "masking")
+public class MaskingConfig {
+    private Map<String, String> patterns;
+
+    public Map<String, String> getPatterns() {
+        return patterns;
+    }
+
+    public void setPatterns(Map<String, String> patterns) {
+        this.patterns = patterns;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+Maskingutil
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+public class MaskingUtil {
+
+    private final Map<String, Pattern> compiledPatterns = new HashMap<>();
+
+    public MaskingUtil(Map<String, String> patterns) {
+        patterns.forEach((field, pattern) -> {
+            String[] parts = pattern.split("-");
+            int startVisible = Integer.parseInt(parts[0]);
+            int endVisible = Integer.parseInt(parts[1]);
+            compiledPatterns.put(field, Pattern.compile("(\\w{" + startVisible + "})(\\w+)(\\w{" + endVisible + "})"));
+        });
+    }
+
+    public String maskField(String fieldName, String value) {
+        Pattern pattern = compiledPatterns.get(fieldName);
+        if (pattern == null || value == null) {
+            return value;
+        }
+        return pattern.matcher(value).replaceAll(matchResult -> {
+            String start = matchResult.group(1);
+            String end = matchResult.group(3);
+            int middleLength = matchResult.group(2).length();
+            return start + "*".repeat(middleLength) + end;
+        });
+    }
+}
+
+
+
+Service
+
+
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class MaskingService {
+
+    private final MaskingUtil maskingUtil;
+
+    @Autowired
+    public MaskingService(MaskingConfig maskingConfig) {
+        this.maskingUtil = new MaskingUtil(maskingConfig.getPatterns());
+    }
+
+    public String maskField(String fieldName, String value) {
+        return maskingUtil.maskField(fieldName, value);
+    }
+}
+
+
+
+
