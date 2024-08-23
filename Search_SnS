@@ -1,0 +1,174 @@
+CREATE TABLE service_support_master (
+    id VARCHAR(255) PRIMARY KEY,
+    epic_name VARCHAR(25) NOT NULL,
+    transaction VARCHAR(50) NOT NULL,
+    search_term VARCHAR(50) NOT NULL,
+    synonyms JSON,
+    customer_type VARCHAR(15),
+    customer_role VARCHAR(255) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    sequence_no INT NOT NULL,
+    txn_id VARCHAR(50) NOT NULL,
+    unique_identifier VARCHAR(255),
+    search_eligible CHAR(1) NOT NULL DEFAULT 'Y'
+);
+
+
+Config
+
+
+const Fuse = require('fuse.js');
+
+const fuseOptions = {
+	 isCaseSensitive: false,
+	 includeScore: true,
+	 shouldSort: true,
+	// includeMatches: false,
+	 findAllMatches: true,
+	 minMatchCharLength: 2,
+	// location: 0,
+	 threshold: 0.6,
+	// distance: 100,
+	// useExtendedSearch: false,
+	// ignoreLocation: false,
+	// ignoreFieldNorm: false,
+	// fieldNormWeight: 1,
+	keys: [
+		"synonyms"
+	]
+};
+
+const fuse = new Fuse(list, fuseOptions);
+
+// Change the pattern
+const searchPattern = "flexi rd"
+
+return fuse.search(searchPattern)
+
+
+
+
+
+
+---------------------------
+{
+    "serviceList": [
+        {
+            "id": "FD_LANDING_PAGE",
+            "epicName": "FD",
+            "transaction": "Landing Page of Deposits",
+            "searchTerm": "Overall Fixed Deposit Summary",
+            "synonyms": ["FD", "FD Details"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/fixed-deposits",
+            "sequenceNo": 1,
+            "txnId": "CCBLS_8065_IN",
+            "uniqueIdentifier": "FD_LANDING_PAGE",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "RD_LANDING_PAGE",
+            "epicName": "RD",
+            "transaction": "Landing Page of Deposits",
+            "searchTerm": "Overall Recurring Deposit Summary",
+            "synonyms": ["RD", "RD Details"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/recurring-deposits",
+            "sequenceNo": 2,
+            "txnId": "CCBLS_7068_IN",
+            "uniqueIdentifier": "RD_LANDING_PAGE",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "OPEN_FD",
+            "epicName": "FD",
+            "transaction": "Open FD Including Open Non- Withdrawable Deposits",
+            "searchTerm": "Open Fixed Deposit",
+            "synonyms": ["FD", "Book", "Invest", "Book FD"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/open-fixed-deposit/form",
+            "sequenceNo": 3,
+            "txnId": "CCBLS_8926_IN",
+            "uniqueIdentifier": "OPEN_FD",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "OPEN_TAX_SAVER_FD",
+            "epicName": "FD",
+            "transaction": "Open Tax Saver FD",
+            "searchTerm": "Open Tax Saver Fixed Deposit",
+            "synonyms": ["FD", "80C", "Tax Savings"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/open-fixed-deposit/form?subtype=tax",
+            "sequenceNo": 4,
+            "txnId": "CCBLS_4123_IN",
+            "uniqueIdentifier": "OPEN_TAX_SAVER_FD",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "FD_DETAILS",
+            "epicName": "FD",
+            "transaction": "FD Details",
+            "searchTerm": "Individual FD Summary",
+            "synonyms": ["Fixed Deposit"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/fixed-deposits",
+            "sequenceNo": 5,
+            "txnId": "CCBLS_5649_IN",
+            "uniqueIdentifier": "FD_DETAILS",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "ADD_UPDATE_NOMINEE_FD",
+            "epicName": "FD",
+            "transaction": "Add / Update Nomination Details - for FD",
+            "searchTerm": "Add/Update Nominee for FD",
+            "synonyms": ["Fixed Deposit", "Nomination"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/fixed-deposits",
+            "sequenceNo": 6,
+            "txnId": "CCBLS_6149_IN",
+            "uniqueIdentifier": "ADD_UPDATE_NOMINEE_FD",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "ADD_UPDATE_NOMINEE_FCNR",
+            "epicName": "FD",
+            "transaction": "Add / update nomination for FCNR",
+            "searchTerm": "Add/Update Nominee for FCNR FD",
+            "synonyms": ["Fixed Deposit", "Nomination", "Foreign Currency Non-Resident Account"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/fixed-deposits",
+            "sequenceNo": 7,
+            "txnId": "CCBLS_4065_IN",
+            "uniqueIdentifier": "ADD_UPDATE_NOMINEE_FCNR",
+            "searchEligible": "Y"
+        },
+        {
+            "id": "ADD_UPDATE_NOMINEE_RD",
+            "epicName": "RD",
+            "transaction": "Add / Update Nomination Details for RD",
+            "searchTerm": "Add/Update Nominee for RD",
+            "synonyms": ["Recurring Deposit", "Nomination"],
+            "customerType": "o",
+            "customerRole": "INQFIN",
+            "url": "/deposits/recurring-deposits",
+            "sequenceNo": 8,
+            "txnId": "CCBLS_8536_IN",
+            "uniqueIdentifier": "ADD_UPDATE_NOMINEE_RD",
+            "searchEligible": "Y"
+        }
+    ]
+}
+
+
+
+
+
